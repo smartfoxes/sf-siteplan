@@ -4,7 +4,7 @@
 * Add custom post types
 */
 add_action( 'init', 'sf_siteplan_create_post_type' );
-add_action( 'add_meta_boxes', 'sf_siteplan_landing_pages_metaboxes' );
+//add_action( 'add_meta_boxes', 'sf_siteplan_landing_pages_metaboxes' );
 
 function sf_siteplan_create_post_type() {
     register_post_type( 'siteplan_lot',
@@ -132,6 +132,58 @@ add_action( 'create_siteplan', 'save_sf_siteplan_custom_meta', 10, 2 );
 
 
 
+// Site Plan custom fields for the image
+function sf_siteplan_type_add_new_meta_field() {
+	// this will add the custom meta field to the add new term page
+	?>
+	<div class="form-field">
+		<label for="sf_siteplan_type[image]"><?php _e( 'Type Image', 'sf_siteplan_type' ); ?></label>
+		<input type="text" name="sf_siteplan_type[image]" id="_sf_siteplan_type_image" />  
+        <input class="button upload_button" name="_sf_siteplan_type_image_button" id="_sf_siteplan_type_image_button" value="Upload" />
+	</div>
+<?php
+}
+add_action( 'siteplan_type_add_form_fields', 'sf_siteplan_type_add_new_meta_field', 10, 2 );
+
+// Edit term page
+function sf_siteplan_type_edit_meta_field($term) {
+ 
+	// put the term ID into a variable
+	$t_id = $term->term_id;
+ 
+	// retrieve the existing value(s) for this meta field. This returns an array
+	$term_meta = get_option( "_sf_siteplan_type_$t_id" ); ?>
+	<tr class="form-field">
+	<th scope="row" valign="top"><label for="sf_siteplan_type[image]"><?php _e( 'Type Image', 'sf_siteplan_type' ); ?></label></th>
+		<td>
+			<input type="text" name="sf_siteplan_type[image]" id="_sf_siteplan_type_image" value="<?php echo esc_attr( $term_meta['image'] ) ? esc_attr( $term_meta['image'] ) : ''; ?>"/>  
+            <input class="button upload_button" name="_sf_siteplan_type_image_button" id="_sf_siteplan_type_image_button" value="Upload" />
+		</td>
+	</tr>
+<?php
+}
+add_action( 'siteplan_type_edit_form_fields', 'sf_siteplan_type_edit_meta_field', 10, 2 );
+
+// Save extra taxonomy fields callback function.
+function save_sf_siteplan_type_custom_meta( $term_id ) {
+    if ( isset( $_POST['sf_siteplan_type'] ) ) {
+		$t_id = $term_id;
+		$term_meta = get_option( "_sf_siteplan_type_$t_id" );
+		$cat_keys = array_keys( $_POST['sf_siteplan_type'] );
+		foreach ( $cat_keys as $key ) {
+			if ( isset ( $_POST['sf_siteplan_type'][$key] ) ) {
+				$term_meta[$key] = $_POST['sf_siteplan_type'][$key];
+			}
+		}
+		// Save the option array.
+		update_option( "_sf_siteplan_type_$t_id", $term_meta );
+	}
+}  
+add_action( 'edited_siteplan_type', 'save_sf_siteplan_type_custom_meta', 10, 2 );  
+add_action( 'create_siteplan_type', 'save_sf_siteplan_type_custom_meta', 10, 2 );
+
+
+
 function sf_siteplan_lot_metaboxes() {
     add_meta_box(
         'sf_siteplan_lot_options',
@@ -148,13 +200,30 @@ function sf_siteplan_lot_metabox_html($post) {
     
     $status = get_post_meta( $post->ID, '_sf_siteplan_lot_status', true );
     $latlng = get_post_meta( $post->ID, '_sf_siteplan_lot_latlng', true );
+    $bathrooms = get_post_meta( $post->ID, '_sf_siteplan_lot_bathrooms', true );
+    $bedrooms = get_post_meta( $post->ID, '_sf_siteplan_lot_bedrooms', true );
+    $footage = get_post_meta( $post->ID, '_sf_siteplan_lot_footage', true );
     ?>
     <p>
     <label for="sf_siteplan_status">Lot Status</label>
     <select class="widefat" type="text" id="sf_siteplan_lot_status" name="sf_siteplan_lot_status">
         <option <?php echo ($status && $status == "Available") ? "selected":"";?> value="Available">Available</option>
+        <option <?php echo ($status  && $status == "Coming Soon") ? "selected":"";?> value="Coming Soon">Coming Soon</option>
+        <option <?php echo ($status  && $status == "Showhome") ? "selected":"";?> value="Showhome">Showhome</option>
         <option <?php echo ($status  && $status == "Sold") ? "selected":"";?> value="Sold">Sold</option>
     </select>    
+    </p>
+    <p>
+    <label for="sf_siteplan_bathrooms">Number of Bathrooms</label>
+    <input type=text class="widefat" type="text" id="sf_siteplan_lot_bathrooms" name="sf_siteplan_lot_bathrooms" value="<?php echo esc_attr($bathrooms);?>">          
+    </p>
+    <p>
+    <label for="sf_siteplan_bedrooms">Number of Bedrooms</label>
+    <input type=text class="widefat" type="text" id="sf_siteplan_lot_bedrooms" name="sf_siteplan_lot_bedrooms" value="<?php echo esc_attr($bedrooms);?>">          
+    </p>
+    <p>
+    <label for="sf_siteplan_footage">Sq. Footage</label>
+    <input type=text class="widefat" type="text" id="sf_siteplan_lot_footage" name="sf_siteplan_lot_footage" value="<?php echo esc_attr($footage);?>">          
     </p>
     
     <p>
@@ -207,6 +276,15 @@ function sf_siteplan_lot_save_postdata( $post_id ) {
     update_post_meta( $post_id, '_sf_siteplan_lot_status', $status );    
     
     $latlng = sanitize_text_field( $_POST['sf_siteplan_lot_latlng'] );
-    update_post_meta( $post_id, '_sf_siteplan_lot_latlng', $latlng );    
+    update_post_meta( $post_id, '_sf_siteplan_lot_latlng', $latlng ); 
+    
+    $bathrooms = sanitize_text_field( $_POST['sf_siteplan_lot_bathrooms'] );
+    update_post_meta( $post_id, '_sf_siteplan_lot_bathrooms', $bathrooms); 
+    
+    $bedrooms = sanitize_text_field( $_POST['sf_siteplan_lot_bedrooms'] );
+    update_post_meta( $post_id, '_sf_siteplan_lot_bedrooms', $bedrooms ); 
+    
+    $footage = sanitize_text_field( $_POST['sf_siteplan_lot_footage'] );
+    update_post_meta( $post_id, '_sf_siteplan_lot_footage', $footage );    
 }
 add_action( 'save_post', 'sf_siteplan_lot_save_postdata' );
